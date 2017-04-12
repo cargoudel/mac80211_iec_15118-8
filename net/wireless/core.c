@@ -691,6 +691,11 @@ int wiphy_register(struct wiphy *wiphy)
 		    (wiphy->bss_select_support & ~(BIT(__NL80211_BSS_SELECT_ATTR_AFTER_LAST) - 2))))
 		return -EINVAL;
 
+	if (WARN_ON(!IS_ENABLED(CONFIG_BPF_WIFIMON) &&
+		    wiphy_ext_feature_isset(wiphy,
+					    NL80211_EXT_FEATURE_WIFIMON_BPF)))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 

@@ -2012,6 +2012,8 @@ enum nl80211_commands {
  *	u32 attribute with an &enum nl80211_timeout_reason value. This is used,
  *	e.g., with %NL80211_CMD_CONNECT event.
  *
+ * @NL80211_ATTR_BPF_FD: BPF file descriptor (s32), use -1 to remove a program
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -2422,6 +2424,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_SCHED_SCAN_RSSI_ADJUST,
 
 	NL80211_ATTR_TIMEOUT_REASON,
+
+	NL80211_ATTR_BPF_FD,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -4753,6 +4757,8 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI: The driver supports sched_scan
  *	for reporting BSSs with better RSSI than the current connected BSS
  *	(%NL80211_ATTR_SCHED_SCAN_RELATIVE_RSSI).
+ * @NL80211_EXT_FEATURE_WIFIMON_BPF: supports running BPF filter programs
+ *	for frames seen on monitor interfaces
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -4771,6 +4777,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA,
 	NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED,
 	NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI,
+	NL80211_EXT_FEATURE_WIFIMON_BPF,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

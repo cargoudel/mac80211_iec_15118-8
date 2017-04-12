@@ -17,6 +17,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
 #include <linux/etherdevice.h>
+#include <linux/bpf.h>
 #include <net/net_namespace.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
@@ -410,6 +411,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		.len = sizeof(struct nl80211_bss_select_rssi_adjust)
 	},
 	[NL80211_ATTR_TIMEOUT_REASON] = { .type = NLA_U32 },
+	[NL80211_ATTR_BPF_FD] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -2768,6 +2770,28 @@ static int nl80211_parse_mon_options(struct cfg80211_registered_device *rdev,
 		change = true;
 	}
 
+	if (info->attrs[NL80211_ATTR_BPF_FD]) {
+		struct bpf_prog *prog = ERR_PTR(-ENODATA);
+		int fd = nla_get_s32(info->attrs[NL80211_ATTR_BPF_FD]);
+		u32 cap_flag = NL80211_EXT_FEATURE_WIFIMON_BPF;
+
+		if (!IS_ENABLED(CONFIG_BPF_WIFIMON) ||
+		    !wiphy_ext_feature_isset(&rdev->wiphy, cap_flag))
+			return -EOPNOTSUPP;
+
+		if (type != NL80211_IFTYPE_MONITOR)
+			return -EINVAL;
+
+		if (fd >= 0) {
+			prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_WIFIMON);
+			if (IS_ERR(prog))
+				return PTR_ERR(prog);
+		}
+
+		params->filter = prog;
+		change = true;
+	}
+
 	return change ? 1 : 0;
 }
 
@@ -2856,6 +2880,9 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 		err = cfg80211_change_iface(rdev, dev, ntype, &params);
 	else
 		err = 0;
+
+	if (err && params.filter)
+		bpf_prog_put(params.filter);
 
 	if (!err && params.use_4addr != -1)
 		dev->ieee80211_ptr->use_4addr = params.use_4addr;
