@@ -214,3 +214,11 @@ config LIB80211_DEBUG
 	  from lib80211.
 
 	  If unsure, say N.
+
+config WANT_BPF_WIFIMON
+	bool
+
+config BPF_WIFIMON
+	bool
+	default y
+	depends on WANT_BPF_WIFIMON && BPF_SYSCALL

@@ -3415,3 +3415,44 @@ out:
 	release_sock(sk);
 	return ret;
 }
+
+#ifdef CONFIG_BPF_WIFIMON
+static const struct bpf_func_proto *
+wifimon_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_skb_load_bytes:
+		return &bpf_skb_load_bytes_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
+static bool wifimon_is_valid_access(int off, int size,
+				    enum bpf_access_type type,
+				    enum bpf_reg_type *reg_type)
+{
+	if (type == BPF_WRITE)
+		return false;
+
+	switch (off) {
+	case offsetof(struct __sk_buff, len):
+		break;
+	default:
+		return false;
+	}
+	/* The verifier guarantees that size > 0. */
+	if (off % size != 0)
+		return false;
+	if (size != sizeof(__u32))
+		return false;
+
+	return true;
+}
+
+const struct bpf_verifier_ops wifimon_prog_ops = {
+	.get_func_proto		= wifimon_func_proto,
+	.is_valid_access	= wifimon_is_valid_access,
+	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+#endif
