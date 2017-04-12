@@ -651,16 +651,38 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_vendor_space);
 
+	/* pretend all the monitor info isn't there */
+	__pskb_pull(origskb, rtap_vendor_space);
+	origskb->len -= present_fcs_len;
+
 	list_for_each_entry_rcu(sdata, &local->mon_list, u.mntr.list) {
+		const struct bpf_prog *filter __maybe_unused;
 		bool last_monitor = list_is_last(&sdata->u.mntr.list,
 						 &local->mon_list);
 
-		if (!monskb)
+#ifdef CONFIG_BPF_WIFIMON
+		filter = rcu_dereference(sdata->u.mntr.filter);
+		if (filter && !BPF_PROG_RUN(filter, origskb))
+			continue;
+#endif
+
+		if (!monskb) {
+			/* stop pretending the monitor info isn't there */
+			origskb->len += present_fcs_len;
+			__skb_push(origskb, rtap_vendor_space);
+
 			monskb = ieee80211_make_monitor_skb(local, &origskb,
 							    rate,
 							    rtap_vendor_space,
 							    only_monitor &&
 							    last_monitor);
+
+			if (origskb) {
+				/* pretend all the monitor info isn't there */
+				__pskb_pull(origskb, rtap_vendor_space);
+				origskb->len -= present_fcs_len;
+			}
+		}
 
 		if (monskb) {
 			struct sk_buff *skb;
@@ -683,12 +705,19 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 			break;
 	}
 
-	/* this happens if last_monitor was erroneously false */
+	/*
+	 * this may happen if filtering, or if the list RCU handling
+	 * got last_monitor erroneously false
+	 */
 	dev_kfree_skb(monskb);
 
 	/* ditto */
 	if (!origskb)
 		return NULL;
+
+	/* stop pretending the monitor info isn't there */
+	origskb->len += present_fcs_len;
+	__skb_push(origskb, rtap_vendor_space);
 
 	remove_monitor_info(origskb, present_fcs_len, rtap_vendor_space);
 	return origskb;

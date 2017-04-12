@@ -8,6 +8,7 @@ config MAC80211
 	select CRYPTO_GCM
 	select CRYPTO_CMAC
 	select CRC32
+	select WANT_BPF_WIFIMON
 	---help---
 	  This option enables the hardware independent IEEE 802.11
 	  networking stack.

@@ -107,6 +107,21 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+#ifdef CONFIG_BPF_WIFIMON
+	if (params->filter) {
+		struct bpf_prog *old = rtnl_dereference(sdata->u.mntr.filter);
+
+		if (IS_ERR(params->filter))
+			RCU_INIT_POINTER(sdata->u.mntr.filter, NULL);
+		else
+			rcu_assign_pointer(sdata->u.mntr.filter,
+					   params->filter);
+
+		if (old)
+			bpf_prog_put(old);
+	}
+#endif
+
 	return 0;
 }
 

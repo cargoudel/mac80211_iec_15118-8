@@ -27,6 +27,8 @@
 #include <linux/leds.h>
 #include <linux/idr.h>
 #include <linux/rhashtable.h>
+#include <linux/filter.h>
+#include <linux/bpf.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -841,6 +843,10 @@ struct ieee80211_if_mntr {
 	u8 mu_follow_addr[ETH_ALEN] __aligned(2);
 
 	struct list_head list;
+
+#ifdef CONFIG_BPF_WIFIMON
+	struct bpf_prog __rcu *filter;
+#endif
 };
 
 /**
