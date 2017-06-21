@@ -729,7 +729,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	if (sdata->vif.type == NL80211_IFTYPE_MONITOR ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-	    local->ops->wake_tx_queue) {
+	    local->ops->wake_tx_queue != ieee80211_wake_tx_queue) {
 		/* XXX: for AP_VLAN, actually track AP queues */
 		if (dev)
 			netif_tx_start_all_queues(dev);
@@ -1753,13 +1753,12 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				 sizeof(void *));
 		int txq_size = 0;
 
-		if (local->ops->wake_tx_queue &&
-		    type != NL80211_IFTYPE_AP_VLAN &&
+		if (type != NL80211_IFTYPE_AP_VLAN &&
 		    type != NL80211_IFTYPE_MONITOR)
 			txq_size += sizeof(struct txq_info) +
 				    local->hw.txq_data_size;
 
-		if (local->ops->wake_tx_queue)
+		if (local->ops->wake_tx_queue != ieee80211_wake_tx_queue)
 			if_setup = ieee80211_if_setup_no_queue;
 		else
 			if_setup = ieee80211_if_setup;
@@ -1809,10 +1808,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		memcpy(sdata->vif.addr, ndev->dev_addr, ETH_ALEN);
 		memcpy(sdata->name, ndev->name, IFNAMSIZ);
 
-		if (txq_size) {
-			txqi = netdev_priv(ndev) + size;
-			ieee80211_txq_init(local, sdata, NULL, txqi, 0);
-		}
+		txqi = netdev_priv(ndev) + size;
+		ieee80211_txq_init(local, sdata, NULL, txqi, 0);
 
 		sdata->dev = ndev;
 	}
