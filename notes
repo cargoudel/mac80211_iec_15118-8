@@ -1,0 +1,58 @@
+driver setup
+============
+
+non-QUEUE_CONTROL drivers
+ * have >= 4 queues
+   - per-AC queues [0-3]
+ * have < 4 queues
+   - all goes to queue 0
+
+QUEUE_CONTROL drivers
+ * hwsim (doesn't handle CAB correctly)
+   - each vif: 0...3
+   - each cab: 0
+   - offchannel: 4
+ * TI (doesn't set HOST_BROADCAST_PS_BUFFERING)
+   - each vif: 4 queues (separate)
+   - each cab: separate queue
+   - offchannel: separate from all others
+ * iwldvm/iwlmvm (doesn't set HOST_BROADCAST_PS_BUFFERING)
+   - each vif: 4 queues (separate)
+   - each cab: separate queue
+   - offchannel: separate from all others (AUX)
+ * ath9k (uses TXQ, sets HOST_BROADCAST_PS_BUFFERING)
+   - each vif: 4 queues (shared based on chanctx)
+   - each cab: all the same (# queues - 2)
+   - offchannel: separate from all others
+ * ath10k (may use TXQ, doesn't set HOST_BROADCAST_PS_BUFFERING)
+   - each vif: 1 queue for all ACs
+   - each cab: same queue as for ACs
+   - offchannel: separate from all others
+
+
+current TX scheme
+=================
+HOST_BROADCAST_PS_BUFFERING && IEEE80211_TX_CTL_SEND_AFTER_DTIM
+ --> queue on ps->bc_buf for ieee80211_get_buffered_bc()
+
+!AP_LINK_PS && sta sleeping
+ --> queue on sta->ps_tx_buf[ac] for wakeup/poll
+ --> send on poll with IEEE80211_TX_CTRL_PS_RESPONSE
+ --> send on wakeup as normal frame (with or without TXQ)
+     [NB: with TXQs, this is buggy due to waking old TXQ before tx_filtered]
+
+finally
+ --> send directly (with or without TXQ)
+
+if filtered TX status
+ --> append to tx_filtered[ac] and use that before ps_tx_buf[ac]
+
+TXQ scheme (where used)
+=======================
+
+MONITOR || IEEE80211_TX_CTL_SEND_AFTER_DTIM || IEEE80211_TX_CTRL_PS_RESPONSE || non-data
+ --> send directly (to TX queue number as given above)
+have STA
+ --> per-STA/TID TXQ
+otherwise
+ --> per-VIF TXQ (for VLAN use AP instead)
